@@ -149,9 +149,9 @@ func collectExampleData(cfg map[string]interface{}, environment string) ([]plugi
 		Timestamp: time.Now(),
 		Type:      "business_metrics",
 		Data: map[string]interface{}{
-			"active_users":      1250,
-			"revenue_today":     15420.50,
-			"conversion_rate":   0.035,
+			"active_users":          1250,
+			"revenue_today":         15420.50,
+			"conversion_rate":       0.035,
 			"customer_satisfaction": 4.7,
 		},
 		Metadata: map[string]string{
