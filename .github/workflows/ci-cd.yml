@@ -96,13 +96,20 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history including all tags
 
     - name: Get version from git tag or generate
       id: version
       run: |
+        # Fetch all tags to ensure we have complete history
+        git fetch --tags
+
         # Try to get version from latest git tag
-        if git describe --tags --abbrev=0 2>/dev/null; then
-          LAST_VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+        if LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null); then
+          LAST_VERSION=$(echo $LAST_TAG | sed 's/^v//')
+          echo "Found existing tag: $LAST_TAG (version: $LAST_VERSION)"
+
           # Extract major.minor.patch and increment patch
           MAJOR=$(echo $LAST_VERSION | cut -d. -f1)
           MINOR=$(echo $LAST_VERSION | cut -d. -f2)
@@ -110,9 +117,11 @@ jobs:
           NEW_PATCH=$((PATCH + 1))
           VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
         else
-          # Start with initial version
+          # No tags exist, start with initial version
+          echo "No existing tags found, starting with initial version"
           VERSION="0.1.1"
         fi
+
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
         echo "Generated version: ${VERSION}"
 
@@ -122,15 +131,12 @@ jobs:
         git config --local user.name "GitHub Action"
 
         TAG="v${{ steps.version.outputs.version }}"
+        echo "Creating tag: $TAG"
 
-        # Check if tag already exists
-        if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-          git tag "$TAG"
-          git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"
-        else
-          echo "Tag $TAG already exists"
-        fi
+        # Always create the tag (version increment ensures uniqueness)
+        git tag "$TAG"
+        git push origin "$TAG"
+        echo "Created and pushed tag: $TAG"
 
     - name: Create source archive
       run: |
