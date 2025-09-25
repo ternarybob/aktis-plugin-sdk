@@ -17,7 +17,7 @@ go get github.com/ternarybob/aktis-plugin-sdk
 This SDK includes automated build and release workflows:
 
 - **Continuous Integration**: Runs tests, go vet, and formatting checks on all PRs and pushes
-- **Automated Releases**: Creates GitHub releases with source code archives when code is pushed to master
+- **Automated Releases**: Creates GitHub releases with source code archives when code is pushed to main
 - **Go Modules**: Automatically validates and tidies dependencies
 
 ### Workflow Features
