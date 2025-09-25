@@ -10,7 +10,12 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(git remote set-head:*)",
+      "Bash(go mod:*)",
+      "Read(//c/development/aktis/aktis-collector-performance/src/**)",
+      "Read(//c/development/aktis/aktis-collector-performance/**)",
+      "Bash(./example-plugin -help)"
     ],
     "deny": [],
     "ask": []
