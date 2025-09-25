@@ -1,0 +1,172 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Run tests
+      run: go test -v ./...
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run go fmt check
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code is not formatted:"
+          gofmt -s -l .
+          exit 1
+        fi
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Build SDK library
+      run: |
+        # Verify the SDK builds without errors
+        go build ./...
+
+        # Run go mod tidy to ensure dependencies are clean
+        go mod tidy
+
+        # Verify no changes after tidy
+        if ! git diff --exit-code go.mod go.sum; then
+          echo "go.mod or go.sum is not up to date"
+          exit 1
+        fi
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Get version from git tag or generate
+      id: version
+      run: |
+        # Try to get version from latest git tag
+        if git describe --tags --abbrev=0 2>/dev/null; then
+          VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+        else
+          # Generate version based on date and commit
+          VERSION="0.1.0-$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
+        fi
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "Generated version: ${VERSION}"
+
+    - name: Create release tag
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        TAG="v${{ steps.version.outputs.version }}"
+
+        # Check if tag already exists
+        if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Created and pushed tag: $TAG"
+        else
+          echo "Tag $TAG already exists"
+        fi
+
+    - name: Create source archive
+      run: |
+        # Create clean source archive without .git and other non-essential files
+        mkdir -p release
+
+        # Create a clean archive of the SDK source
+        git archive --format=tar.gz --prefix=aktis-plugin-sdk-${{ steps.version.outputs.version }}/ HEAD > release/aktis-plugin-sdk-${{ steps.version.outputs.version }}.tar.gz
+
+        # Create checksum
+        cd release
+        sha256sum aktis-plugin-sdk-${{ steps.version.outputs.version }}.tar.gz > aktis-plugin-sdk-${{ steps.version.outputs.version }}.tar.gz.sha256
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Aktis Plugin SDK v${{ steps.version.outputs.version }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## Aktis Plugin SDK v${{ steps.version.outputs.version }}
+
+          ### About
+          The Aktis Plugin SDK provides a Go library for building plugins that integrate with the Aktis monitoring system.
+
+          ### Installation
+          ```bash
+          go get github.com/ternarybob/aktis-plugin-sdk@v${{ steps.version.outputs.version }}
+          ```
+
+          ### Usage
+          Import the SDK in your Go project:
+          ```go
+          import "github.com/ternarybob/aktis-plugin-sdk"
+          ```
+
+          ### Documentation
+          See the included README.md for detailed usage examples and API documentation.
+
+          ### Source Code
+          Download the source code archive if you need to inspect or modify the SDK locally.
+        files: |
+          release/*

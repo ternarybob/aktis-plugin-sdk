@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/development/aktis/aktis-collector-performance/.github/workflows/**)",
+      "Bash(mkdir:*)",
+      "Bash(go test:*)",
+      "Bash(go vet:*)",
+      "Bash(gofmt:*)",
+      "Bash(go build:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
