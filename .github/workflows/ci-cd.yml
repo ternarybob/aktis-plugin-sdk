@@ -28,7 +28,7 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum', '**/go.mod') }}
         restore-keys: |
           ${{ runner.os }}-go-
 
@@ -68,7 +68,7 @@ jobs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum', '**/go.mod') }}
         restore-keys: |
           ${{ runner.os }}-go-
 
@@ -80,8 +80,8 @@ jobs:
         # Run go mod tidy to ensure dependencies are clean
         go mod tidy
 
-        # Verify no changes after tidy
-        if ! git diff --exit-code go.mod go.sum; then
+        # Verify no changes after tidy (only check files that exist)
+        if ! git diff --exit-code go.mod $(test -f go.sum && echo go.sum); then
           echo "go.mod or go.sum is not up to date"
           exit 1
         fi
